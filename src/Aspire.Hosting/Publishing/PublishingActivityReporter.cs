@@ -253,34 +253,10 @@ internal sealed class PublishingActivityReporter : IPublishingActivityReporter, 
         }
     }
 
-    /// <summary>
-    /// Checks if there are any steps currently in progress.
-    /// </summary>
-    private bool HasStepsInProgress()
-    {
-        return _steps.Any(step => step.Value.CompletionState == CompletionState.InProgress);
-    }
-
     private async Task HandleInteractionUpdateAsync(Interaction interaction, CancellationToken cancellationToken)
     {
         if (interaction.State == Interaction.InteractionState.InProgress)
         {
-            if (HasStepsInProgress())
-            {
-                await _interactionService.CompleteInteractionAsync(interaction.InteractionId, (interaction, ServiceProvider) =>
-                {
-                    // Complete the interaction with an error state
-                    interaction.CompletionTcs.TrySetException(new InvalidOperationException("Cannot prompt interaction while steps are in progress."));
-                    return new InteractionCompletionState
-                    {
-                        Complete = true,
-                        State = "Cannot prompt interaction while steps are in progress."
-                    };
-                }, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            // Handle input interaction types
             if (interaction.InteractionInfo is Interaction.InputsInteractionInfo inputsInfo && inputsInfo.Inputs.Count > 0)
             {
                 var promptInputs = inputsInfo.Inputs.Select(input => new PublishingPromptInput
