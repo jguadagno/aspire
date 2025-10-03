@@ -26,7 +26,8 @@ internal sealed class CertificateService(IInteractionService interactionService,
         var ensureCertificateCollector = new OutputCollector();
         var checkExitCode = await interactionService.ShowStatusAsync(
             $":locked_with_key: {InteractionServiceStrings.CheckingCertificates}",
-            async () => {
+            async () =>
+            {
                 var options = new DotNetCliRunnerInvocationOptions
                 {
                     StandardOutputCallback = ensureCertificateCollector.AppendOutput,

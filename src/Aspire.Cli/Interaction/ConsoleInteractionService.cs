@@ -35,7 +35,7 @@ internal class ConsoleInteractionService : IInteractionService
             DisplaySubtleMessage(statusText);
             return await action();
         }
-        
+
         return await _ansiConsole.Status()
             .Spinner(Spinner.Known.Dots3)
             .StartAsync(statusText, (context) => action());
@@ -50,7 +50,7 @@ internal class ConsoleInteractionService : IInteractionService
             action();
             return;
         }
-        
+
         _ansiConsole.Status()
             .Spinner(Spinner.Known.Dots3)
             .Start(statusText, (context) => action());

@@ -2,7 +2,7 @@
   "profiles": {
     "dev-waitfor-explicit": {
       "commandName": "Project",
-      "commandLineArgs": "polyglot run -o c:\\temp\\r926",
+      "commandLineArgs": "polyglot new -o c:\\temp\\r310",
       "dotnetRunMessages": true
     },
     "dev-waitfor-implicit": {

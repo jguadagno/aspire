@@ -28,7 +28,7 @@ internal sealed class DotNetSdkInstaller(IFeatures features, IConfiguration conf
     public async Task<(bool Success, string? HighestVersion, string MinimumRequiredVersion)> CheckAsync(CancellationToken cancellationToken = default)
     {
         var minimumVersion = GetEffectiveMinimumSdkVersion();
-        
+
         if (!features.IsFeatureEnabled(KnownFeatures.MinimumSdkCheckEnabled, true))
         {
             // If the feature is disabled, we assume the SDK is available
@@ -138,7 +138,7 @@ internal sealed class DotNetSdkInstaller(IFeatures features, IConfiguration conf
     {
         // Check for configuration override first
         var overrideVersion = configuration["overrideMinimumSdkVersion"];
-        
+
         if (!string.IsNullOrEmpty(overrideVersion))
         {
             return overrideVersion;

@@ -18,7 +18,7 @@ internal class PackagingService(CliExecutionContext executionContext, INuGetPack
     public Task<IEnumerable<PackageChannel>> GetChannelsAsync(CancellationToken cancellationToken = default)
     {
         var defaultChannel = PackageChannel.CreateImplicitChannel(nuGetPackageCache);
-        
+
         var stableChannel = PackageChannel.CreateExplicitChannel("stable", PackageChannelQuality.Stable, new[]
         {
             new PackageMapping(PackageMapping.AllPackages, "https://api.nuget.org/v3/index.json")
@@ -53,7 +53,7 @@ internal class PackagingService(CliExecutionContext executionContext, INuGetPack
             }
         }
 
-        var channels = new List<PackageChannel>([defaultChannel, stableChannel, dailyChannel, ..prPackageChannels]);
+        var channels = new List<PackageChannel>([defaultChannel, stableChannel, dailyChannel, .. prPackageChannels]);
 
         // Add staging channel if feature is enabled
         if (features.IsFeatureEnabled(KnownFeatures.StagingChannelEnabled, false))

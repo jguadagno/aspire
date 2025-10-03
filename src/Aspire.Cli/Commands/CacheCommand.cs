@@ -45,7 +45,7 @@ internal sealed class CacheCommand : BaseCommand
             try
             {
                 var cacheDirectory = ExecutionContext.CacheDirectory;
-                
+
                 if (!cacheDirectory.Exists)
                 {
                     InteractionService.DisplayMessage("information", CacheCommandStrings.CacheAlreadyEmpty);
@@ -53,7 +53,7 @@ internal sealed class CacheCommand : BaseCommand
                 }
 
                 var filesDeleted = 0;
-                
+
                 // Delete all cache files and subdirectories
                 foreach (var file in cacheDirectory.GetFiles("*", SearchOption.AllDirectories))
                 {

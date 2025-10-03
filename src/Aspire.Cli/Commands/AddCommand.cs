@@ -142,7 +142,8 @@ internal sealed class AddCommand : BaseCommand
             // If we didn't match any, show a complete list. If we matched one, and its
             // an exact match, then we still prompt, but it will only prompt for
             // the version. If there is more than one match then we prompt.
-            var selectedNuGetPackage = filteredPackagesWithShortName.Count() switch {
+            var selectedNuGetPackage = filteredPackagesWithShortName.Count() switch
+            {
                 0 => await GetPackageByInteractiveFlowWithNoMatchesMessage(packagesWithShortName, integrationName, cancellationToken),
                 1 => filteredPackagesWithShortName.First().Package.Version == version
                     ? filteredPackagesWithShortName.First()
@@ -153,7 +154,8 @@ internal sealed class AddCommand : BaseCommand
 
             var addPackageResult = await InteractionService.ShowStatusAsync(
                 AddCommandStrings.AddingAspireIntegration,
-                async () => {
+                async () =>
+                {
 
                     var addPackageOptions = new DotNetCliRunnerInvocationOptions
                     {
@@ -228,7 +230,7 @@ internal sealed class AddCommand : BaseCommand
             return preferredVersionPackage;
         }
 
-            // ... otherwise we had better prompt.
+        // ... otherwise we had better prompt.
         var orderedPackageVersions = packageVersions.OrderByDescending(p => SemVersion.Parse(p.Package.Version), SemVersion.PrecedenceComparer);
         var version = await _prompter.PromptForIntegrationVersionAsync(orderedPackageVersions, cancellationToken);
 
@@ -250,7 +252,7 @@ internal sealed class AddCommand : BaseCommand
         // Remove 'Aspire.Hosting' segment from anywhere in the package name
         var packageId = packageWithChannel.Package.Id.Replace("Aspire.Hosting.", "", StringComparison.OrdinalIgnoreCase);
         var friendlyName = packageId.Replace('.', '-').ToLowerInvariant();
-        
+
         return (friendlyName, packageWithChannel.Package, packageWithChannel.Channel);
     }
 }

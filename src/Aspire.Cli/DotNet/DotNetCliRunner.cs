@@ -180,14 +180,16 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
 
         var stdoutBuilder = new StringBuilder();
         var existingStandardOutputCallback = options.StandardOutputCallback; // Preserve the existing callback if it exists.
-        options.StandardOutputCallback = (line) => {
+        options.StandardOutputCallback = (line) =>
+        {
             stdoutBuilder.AppendLine(line);
             existingStandardOutputCallback?.Invoke(line);
         };
 
         var stderrBuilder = new StringBuilder();
         var existingStandardErrorCallback = options.StandardErrorCallback; // Preserve the existing callback if it exists.
-        options.StandardErrorCallback = (line) => {
+        options.StandardErrorCallback = (line) =>
+        {
             stderrBuilder.AppendLine(line);
             existingStandardErrorCallback?.Invoke(line);
         };
@@ -245,9 +247,9 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
         string[] cliArgs = isSingleFile switch
         {
             false => [watchOrRunCommand, nonInteractiveSwitch, verboseSwitch, noBuildSwitch, noProfileSwitch, "--project", projectFile.FullName, "--", .. args],
-            true => ["run", projectFile.FullName, "--", ..args]
+            true => ["run", projectFile.FullName, "--", .. args]
         };
-        
+
         // Inject DOTNET_CLI_USE_MSBUILD_SERVER when noBuild == false - we copy the
         // dictionary here because we don't want to mutate the input.
         IDictionary<string, string>? finalEnv = env;
@@ -351,14 +353,16 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
 
         var stdoutBuilder = new StringBuilder();
         var existingStandardOutputCallback = options.StandardOutputCallback; // Preserve the existing callback if it exists.
-        options.StandardOutputCallback = (line) => {
+        options.StandardOutputCallback = (line) =>
+        {
             stdoutBuilder.AppendLine(line);
             existingStandardOutputCallback?.Invoke(line);
         };
 
         var stderrBuilder = new StringBuilder();
         var existingStandardErrorCallback = options.StandardErrorCallback; // Preserve the existing callback if it exists.
-        options.StandardErrorCallback = (line) => {
+        options.StandardErrorCallback = (line) =>
+        {
             stderrBuilder.AppendLine(line);
             existingStandardErrorCallback?.Invoke(line);
         };
@@ -437,8 +441,10 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
             return false;
         }
 
-        var templateVersion = successLine.Split(" ") switch { // Break up the success line.
-            { Length: > 2 } chunks => chunks[1].Split("::") switch { // Break up the template+version string
+        var templateVersion = successLine.Split(" ") switch
+        { // Break up the success line.
+            { Length: > 2 } chunks => chunks[1].Split("::") switch
+            { // Break up the template+version string
                 { Length: 2 } versionChunks => versionChunks[1], // The version in the second chunk
                 _ => null
             },
@@ -461,7 +467,7 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
     {
         using var activity = telemetry.ActivitySource.StartActivity();
 
-        string[] cliArgs = ["new", templateName, "--name", name, "--output", outputPath, ..extraArgs];
+        string[] cliArgs = ["new", templateName, "--name", name, "--output", outputPath, .. extraArgs];
         return await ExecuteAsync(
             args: cliArgs,
             env: null,
@@ -570,23 +576,25 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
             _ = StartBackchannelAsync(process, socketPath, backchannelCompletionSource, cancellationToken);
         }
 
-        var pendingStdoutStreamForwarder = Task.Run(async () => {
+        var pendingStdoutStreamForwarder = Task.Run(async () =>
+        {
             await ForwardStreamToLoggerAsync(
                 process.StandardOutput,
                 "stdout",
                 process,
                 options.StandardOutputCallback,
                 cancellationToken);
-            }, cancellationToken);
+        }, cancellationToken);
 
-        var pendingStderrStreamForwarder = Task.Run(async () => {
+        var pendingStderrStreamForwarder = Task.Run(async () =>
+        {
             await ForwardStreamToLoggerAsync(
                 process.StandardError,
                 "stderr",
                 process,
                 options.StandardErrorCallback,
                 cancellationToken);
-            }, cancellationToken);
+        }, cancellationToken);
 
         if (!started)
         {
@@ -1009,14 +1017,16 @@ internal class DotNetCliRunner(ILogger<DotNetCliRunner> logger, IServiceProvider
 
         var stdoutLines = new List<string>();
         var existingStandardOutputCallback = options.StandardOutputCallback; // Preserve the existing callback if it exists.
-        options.StandardOutputCallback = (line) => {
+        options.StandardOutputCallback = (line) =>
+        {
             stdoutLines.Add(line);
             existingStandardOutputCallback?.Invoke(line);
         };
 
         var stderrLines = new List<string>();
         var existingStandardErrorCallback = options.StandardErrorCallback; // Preserve the existing callback if it exists.
-        options.StandardErrorCallback = (line) => {
+        options.StandardErrorCallback = (line) =>
+        {
             stderrLines.Add(line);
             existingStandardErrorCallback?.Invoke(line);
         };

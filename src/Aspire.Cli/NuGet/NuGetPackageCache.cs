@@ -23,7 +23,7 @@ internal interface INuGetPackageCache
 internal sealed class NuGetPackageCache(ILogger<NuGetPackageCache> logger, IDotNetCliRunner cliRunner, IMemoryCache memoryCache, AspireCliTelemetry telemetry, IFeatures features) : INuGetPackageCache
 {
     private const int SearchPageSize = 1000;
-    
+
     // List of deprecated packages that should be filtered by default
     private static readonly HashSet<string> s_deprecatedPackages = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -124,7 +124,7 @@ internal sealed class NuGetPackageCache(ILogger<NuGetPackageCache> logger, IDotN
 
         // If no specific filter is specified we use the fallback filter which is useful in most circumstances
         // other that aspire update which really needs to see all the packages to work effectively.
-        var effectiveFilter = (NuGetPackage p) => 
+        var effectiveFilter = (NuGetPackage p) =>
         {
             if (filter is not null)
             {
@@ -132,7 +132,7 @@ internal sealed class NuGetPackageCache(ILogger<NuGetPackageCache> logger, IDotN
             }
 
             var isOfficialPackage = IsOfficialOrCommunityToolkitPackage(p.Id);
-            
+
             // Apply deprecated package filter unless the user wants to show deprecated packages
             if (isOfficialPackage && !features.IsFeatureEnabled(KnownFeatures.ShowDeprecatedPackages, defaultValue: false))
             {
@@ -141,7 +141,7 @@ internal sealed class NuGetPackageCache(ILogger<NuGetPackageCache> logger, IDotN
 
             return isOfficialPackage;
         };
-        
+
         return collectedPackages.Where(effectiveFilter);
 
         static bool IsOfficialOrCommunityToolkitPackage(string packageName)

@@ -24,7 +24,7 @@ internal sealed class ProjectLocator(ILogger<ProjectLocator> logger, IDotNetCliR
     public async Task<List<FileInfo>> FindAppHostProjectFilesAsync(string searchDirectory, CancellationToken cancellationToken)
     {
         var allCandidates = await FindAppHostProjectFilesAsync(new DirectoryInfo(searchDirectory), cancellationToken);
-        return [..allCandidates.BuildableAppHost, ..allCandidates.UnbuildableSuspectedAppHostProjects];
+        return [.. allCandidates.BuildableAppHost, .. allCandidates.UnbuildableSuspectedAppHostProjects];
     }
 
     private async Task<(List<FileInfo> BuildableAppHost, List<FileInfo> UnbuildableSuspectedAppHostProjects)> FindAppHostProjectFilesAsync(DirectoryInfo searchDirectory, CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ internal sealed class ProjectLocator(ILogger<ProjectLocator> logger, IDotNetCliR
             };
 
             interactionService.DisplayMessage("magnifying_glass_tilted_left", InteractionServiceStrings.FindingAppHosts);
-            
+
             // Scan for *.csproj files (existing logic)
             var projectFiles = searchDirectory.GetFiles("*.csproj", enumerationOptions);
             logger.LogDebug("Found {ProjectFileCount} project files in {SearchDirectory}", projectFiles.Length, searchDirectory.FullName);
@@ -92,7 +92,7 @@ internal sealed class ProjectLocator(ILogger<ProjectLocator> logger, IDotNetCliR
                 await Parallel.ForEachAsync(candidateAppHostFiles, parallelOptions, async (candidateFile, ct) =>
                 {
                     logger.LogDebug("Checking single-file apphost candidate {CandidateFile}", candidateFile.FullName);
-                    
+
                     if (await IsValidSingleFileAppHostAsync(candidateFile, ct))
                     {
                         logger.LogDebug("Found single-file apphost candidate {CandidateFile} in {SearchDirectory}", candidateFile.FullName, searchDirectory.FullName);

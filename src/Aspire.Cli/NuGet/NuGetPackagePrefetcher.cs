@@ -16,7 +16,7 @@ internal sealed class NuGetPackagePrefetcher(ILogger<NuGetPackagePrefetcher> log
     {
         // Wait for command to be selected
         var command = await WaitForCommandSelectionAsync(stoppingToken);
-        
+
         var shouldPrefetchTemplates = ShouldPrefetchTemplatePackages(command);
         var shouldPrefetchCli = ShouldPrefetchCliPackages(command);
 
@@ -76,7 +76,7 @@ internal sealed class NuGetPackagePrefetcher(ILogger<NuGetPackagePrefetcher> log
             // If timeout occurs, proceed with default behavior (no command)
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
             using var combined = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-            
+
             var command = await executionContext.CommandSelected.Task.WaitAsync(combined.Token);
             return command;
         }

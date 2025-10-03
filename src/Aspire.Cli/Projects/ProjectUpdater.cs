@@ -172,7 +172,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         var itemsKey = string.Join(",", items.OrderBy(x => x));
         var propertiesKey = string.Join(",", properties.OrderBy(x => x));
         var cacheKey = $"{ItemsAndPropertiesCacheKeyPrefix}_{projectFile.FullName}_{itemsKey}_{propertiesKey}";
-        
+
         var (exitCode, document) = await cache.GetOrCreateAsync(cacheKey, async entry =>
         {
             return await runner.GetProjectItemsAndPropertiesAsync(projectFile, items, properties, new(), cancellationToken);
@@ -202,7 +202,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         {
             // Only use fallback for AppHost projects
             logger.LogWarning("Falling back to XML parsing for '{ProjectFile}'. Reason: {Message}", projectFile.FullName, ex.Message);
-            
+
             if (!context.FallbackXmlParsing)
             {
                 context.FallbackXmlParsing = true;
@@ -328,30 +328,30 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         {
             foreach (var packageReference in packageReferencesElement.EnumerateArray())
             {
-            var packageId = packageReference.GetProperty("Identity").GetString() ?? throw new ProjectUpdaterException(UpdateCommandStrings.PackageReferenceNoIdentity);
+                var packageId = packageReference.GetProperty("Identity").GetString() ?? throw new ProjectUpdaterException(UpdateCommandStrings.PackageReferenceNoIdentity);
 
-            if (!IsUpdatablePackage(packageId))
-            {
-                continue;
-            }
-
-            if (cpmInfo.UsesCentralPackageManagement)
-            {
-                await AnalyzePackageForCentralPackageManagementAsync(packageId, projectFile, cpmInfo.DirectoryPackagesPropsFile!, context, cancellationToken);
-            }
-            else
-            {
-                // Traditional package management - Version should be in PackageReference
-                if (!packageReference.TryGetProperty("Version", out var versionElement) || versionElement.GetString() is null)
+                if (!IsUpdatablePackage(packageId))
                 {
-                    throw new ProjectUpdaterException(UpdateCommandStrings.PackageReferenceNoVersion);
+                    continue;
                 }
-                
-                var packageVersion = versionElement.GetString()!;
-                await AnalyzePackageForTraditionalManagementAsync(packageId, packageVersion, projectFile, context, cancellationToken);
+
+                if (cpmInfo.UsesCentralPackageManagement)
+                {
+                    await AnalyzePackageForCentralPackageManagementAsync(packageId, projectFile, cpmInfo.DirectoryPackagesPropsFile!, context, cancellationToken);
+                }
+                else
+                {
+                    // Traditional package management - Version should be in PackageReference
+                    if (!packageReference.TryGetProperty("Version", out var versionElement) || versionElement.GetString() is null)
+                    {
+                        throw new ProjectUpdaterException(UpdateCommandStrings.PackageReferenceNoVersion);
+                    }
+
+                    var packageVersion = versionElement.GetString()!;
+                    await AnalyzePackageForTraditionalManagementAsync(packageId, packageVersion, projectFile, context, cancellationToken);
+                }
             }
         }
-    }
     }
 
     private static bool IsUpdatablePackage(string packageId)
@@ -399,7 +399,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
     private async Task AnalyzePackageForCentralPackageManagementAsync(string packageId, FileInfo projectFile, FileInfo directoryPackagesPropsFile, UpdateContext context, CancellationToken cancellationToken)
     {
         var currentVersion = await GetPackageVersionFromDirectoryPackagesPropsAsync(packageId, directoryPackagesPropsFile, projectFile, cancellationToken);
-        
+
         if (currentVersion is null)
         {
             logger.LogInformation("Package '{PackageId}' not found in Directory.Packages.props, skipping.", packageId);
@@ -432,7 +432,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
             doc.Load(directoryPackagesPropsFile.FullName);
             var packageVersionNode = doc.SelectSingleNode($"/Project/ItemGroup/PackageVersion[@Include='{packageId}']");
             var versionAttribute = packageVersionNode?.Attributes?["Version"]?.Value;
-            
+
             if (versionAttribute is null)
             {
                 return null;
@@ -451,7 +451,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
                     }
                     else
                     {
-                        throw new ProjectUpdaterException(string.Format(System.Globalization.CultureInfo.InvariantCulture, 
+                        throw new ProjectUpdaterException(string.Format(System.Globalization.CultureInfo.InvariantCulture,
                             "Unable to resolve MSBuild property '{0}' to a valid semantic version. Expression: '{1}', Resolved value: '{2}'",
                             propertyName, versionAttribute, resolvedValue ?? "null"));
                     }
@@ -499,7 +499,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         try
         {
             var document = await GetItemsAndPropertiesAsync(
-                projectFile, 
+                projectFile,
                 Array.Empty<string>(), // No items needed
                 [propertyName], // Just the property we want
                 cancellationToken);
@@ -536,7 +536,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
     {
         var doc = new XmlDocument { PreserveWhitespace = true };
         doc.Load(directoryPackagesPropsFile.FullName);
-        
+
         var packageVersionNode = doc.SelectSingleNode($"/Project/ItemGroup/PackageVersion[@Include='{packageId}']");
         if (packageVersionNode?.Attributes?["Version"] is null)
         {
@@ -570,7 +570,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         interactionService.DisplayEmptyLine();
 
         var changes = AnalyzeNuGetConfigChanges(originalDocument, proposedDocument);
-        
+
         if (!changes.HasChanges)
         {
             interactionService.DisplayPlainText(UpdateCommandStrings.NoChangesDetectedInNuGetConfig);
@@ -578,7 +578,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         }
 
         DisplayNuGetConfigChanges(changes);
-        
+
         var shouldProceed = await interactionService.ConfirmAsync(
             UpdateCommandStrings.ApplyChangesToNuGetConfig,
             defaultValue: true,
@@ -617,7 +617,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
     private static List<PackageSourceInfo> ExtractPackageSources(XmlDocument? document)
     {
         var sources = new List<PackageSourceInfo>();
-        if (document?.DocumentElement == null) 
+        if (document?.DocumentElement == null)
         {
             return sources;
         }
@@ -646,7 +646,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
     private static Dictionary<string, List<string>> ExtractPackageSourceMappings(XmlDocument? document)
     {
         var mappings = new Dictionary<string, List<string>>();
-        if (document?.DocumentElement == null) 
+        if (document?.DocumentElement == null)
         {
             return mappings;
         }
@@ -718,7 +718,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         {
             interactionService.DisplayPlainText(string.Format(CultureInfo.InvariantCulture, UpdateCommandStrings.AddedFeedFormat, feed.Value));
             interactionService.DisplayEmptyLine();
-            
+
             if (changes.ProposedMappings.TryGetValue(feed.Key, out var patterns))
             {
                 foreach (var pattern in patterns)
@@ -741,7 +741,7 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
         {
             interactionService.DisplayPlainText(string.Format(CultureInfo.InvariantCulture, UpdateCommandStrings.RetainedFeedFormat, feed.Value));
             interactionService.DisplayEmptyLine();
-            
+
             if (mappingChangesBySource.TryGetValue(feed.Key, out var mappingChange))
             {
                 // Show added patterns
@@ -749,19 +749,19 @@ internal sealed class ProjectUpdater(ILogger<ProjectUpdater> logger, IDotNetCliR
                 {
                     interactionService.DisplayPlainText(string.Format(CultureInfo.InvariantCulture, UpdateCommandStrings.MappingAddedFormat, pattern));
                 }
-                
+
                 // Show removed patterns
                 foreach (var pattern in mappingChange.RemovedPatterns)
                 {
                     interactionService.DisplayPlainText(string.Format(CultureInfo.InvariantCulture, UpdateCommandStrings.MappingRemovedFormat, pattern));
                 }
             }
-            
+
             // Show current/unchanged mappings in the proposed configuration
             if (changes.ProposedMappings.TryGetValue(feed.Key, out var currentPatterns))
             {
                 var addedPatterns = mappingChangesBySource.TryGetValue(feed.Key, out var currentMappingChange) ? currentMappingChange.AddedPatterns : new List<string>();
-                
+
                 foreach (var pattern in currentPatterns)
                 {
                     // Only show patterns that weren't added (they are existing/unchanged)
@@ -819,7 +819,7 @@ internal abstract record UpdateStep(string Description, Func<Task> Callback)
 /// Represents an update step for a package reference, containing package and project information.
 /// </summary>
 internal record PackageUpdateStep(
-    string Description, 
+    string Description,
     Func<Task> Callback,
     string PackageId,
     string CurrentVersion,

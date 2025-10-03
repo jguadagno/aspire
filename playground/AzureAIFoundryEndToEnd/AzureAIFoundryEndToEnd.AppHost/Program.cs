@@ -4,6 +4,7 @@
 using Aspire.Hosting.Azure;
 
 var builder = DistributedApplication.CreateBuilder(args);
+var t = typeof(IResourceBuilder<>);
 
 var foundry = builder.AddAzureAIFoundry("foundry")
     .RunAsFoundryLocal()

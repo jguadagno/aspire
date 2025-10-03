@@ -35,7 +35,7 @@ internal sealed class NewCommand : BaseCommand, IPackageMetaPrefetchingCommand
     /// NewCommand prefetches both template and CLI package metadata.
     /// </summary>
     public bool PrefetchesTemplatePackageMetadata => true;
-    
+
     /// <summary>
     /// NewCommand prefetches CLI package metadata for update notifications.
     /// </summary>

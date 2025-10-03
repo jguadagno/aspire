@@ -48,7 +48,7 @@ internal sealed class TemporaryNuGetConfig : IDisposable
 
         await xmlWriter.WriteStartDocumentAsync();
         await xmlWriter.WriteStartElementAsync(null, "configuration", null);
-        
+
         // Write packageSources section
         await xmlWriter.WriteStartElementAsync(null, "packageSources", null);
 

@@ -3,8 +3,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using Aspire.Cli.Rosetta;
+using Aspire.Cli.Rosetta.Models.Types;
 
 namespace Aspire.Cli.Rosetta.Models;
 
@@ -22,34 +21,34 @@ namespace Aspire.Cli.Rosetta.Models;
 [UnconditionalSuppressMessage("Trimming", "IL3001", Justification = "Types are coming from System.Reflection.Metadata which are trim/aot compatible")]
 [UnconditionalSuppressMessage("Trimming", "IL3050", Justification = "Types are coming from System.Reflection.Metadata which are trim/aot compatible")]
 [UnconditionalSuppressMessage("Trimming", "IL3053", Justification = "Types are coming from System.Reflection.Metadata which are trim/aot compatible")]
-public class WellKnownTypes(IEnumerable<Assembly> assemblies) : IWellKnownTypes
+internal class WellKnownTypes(IEnumerable<RoAssembly> assemblies) : IWellKnownTypes
 {
-    private readonly Dictionary<Type, Type> _knownTypes = [];
-    private readonly IEnumerable<Assembly> _assemblies = assemblies;
-    private readonly Assembly _aspireHostingAssembly = assemblies.FirstOrDefault(x => x.GetName().Name == "Aspire.Hosting") ??
+    private readonly Dictionary<Type, RoType> _knownTypes = [];
+    private readonly IEnumerable<RoAssembly> _assemblies = assemblies;
+    private readonly RoAssembly _aspireHostingAssembly = assemblies.FirstOrDefault(x => x.Name == "Aspire.Hosting") ??
             throw new InvalidOperationException("Aspire.Hosting assembly not found.");
 
-    public Type ResourceType =>
+    public RoType ResourceType =>
         _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.Resource") ??
         throw new InvalidOperationException("Resource type not found.");
 
-    public Type IResourceType =>
+    public RoType IResourceType =>
         _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResource") ??
         throw new InvalidOperationException("IResource type not found.");
 
-    public Type IResourceWithConnectionStringType =>
+    public RoType IResourceWithConnectionStringType =>
         _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResourceWithConnectionString") ??
         throw new InvalidOperationException("IResourceWithConnectionString type not found.");
 
-    public Type IResourceBuilderType =>
+    public RoType IResourceBuilderType =>
         _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResourceBuilder`1") ??
         throw new InvalidOperationException("IResourceBuilder type not found.");
 
-    public Type IDistributedApplicationBuilderType =>
+    public RoType IDistributedApplicationBuilderType =>
         _aspireHostingAssembly.GetType("Aspire.Hosting.IDistributedApplicationBuilder") ??
         throw new InvalidOperationException("IDistributedApplicationBuilder type not found.");
 
-    public bool TryGetResourceBuilderTypeArgument(Type resourceBuilderType, [NotNullWhen(true)] out Type? resourceType)
+    public bool TryGetResourceBuilderTypeArgument(RoType resourceBuilderType, [NotNullWhen(true)] out RoType? resourceType)
     {
         if (!resourceBuilderType.IsGenericType)
         {
@@ -57,13 +56,13 @@ public class WellKnownTypes(IEnumerable<Assembly> assemblies) : IWellKnownTypes
             return false;
         }
 
-        if (resourceBuilderType.GetGenericTypeDefinition() != IResourceBuilderType)
+        if (resourceBuilderType.GenericTypeDefinition != IResourceBuilderType)
         {
             resourceType = null;
             return false;
         }
 
-        if (resourceBuilderType.GenericTypeArguments.Length != 1)
+        if (resourceBuilderType.GenericTypeArguments.Count != 1)
         {
             resourceType = null;
             return false;
@@ -79,7 +78,7 @@ public class WellKnownTypes(IEnumerable<Assembly> assemblies) : IWellKnownTypes
     /// <param name="type"></param>
     /// <param name="knownType"></param>
     /// <returns></returns>
-    public bool TryGetKnownType(Type type, [NotNullWhen(true)] out Type? knownType)
+    public bool TryGetKnownType(Type type, [NotNullWhen(true)] out RoType? knownType)
     {
         Debug.Assert(type.FullName != null);
 
@@ -95,7 +94,7 @@ public class WellKnownTypes(IEnumerable<Assembly> assemblies) : IWellKnownTypes
                 return false;
             }
 
-            var genericTypeArguments = new List<Type>();
+            var genericTypeArguments = new List<RoType>();
 
             foreach (var genericArgument in type.GenericTypeArguments)
             {
