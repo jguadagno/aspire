@@ -173,9 +173,9 @@ internal sealed class RoDefinitionType : RoType
                 return null;
         }
 
-        return Assembly.GetTypeDefinition(baseTypeFullName) ??
-                Assembly.AssemblyLoaderContext.LoadedAssemblies.Values
-                    .Select(a => a.GetTypeDefinition(baseTypeFullName))
+        return DeclaringAssembly.GetType(baseTypeFullName) ??
+                DeclaringAssembly.AssemblyLoaderContext.LoadedAssemblies.Values
+                    .Select(a => a.GetType(baseTypeFullName))
                     .FirstOrDefault(t => t is not null);
 
     }

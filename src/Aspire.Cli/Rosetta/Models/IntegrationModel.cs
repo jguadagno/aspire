@@ -190,7 +190,7 @@ internal class IntegrationModel
             var isCandidate = !type.IsGenericParameter &&
                 // !type.IsByRef &&
                 type.IsPublic &&
-                (type.Assembly != objectType.Assembly || type.IsEnum) &&
+                (type.DeclaringAssembly != objectType.DeclaringAssembly || type.IsEnum) &&
                 !knownTypes.Contains(type) &&
                !(type.IsGenericType && type.GenericTypeDefinition == WellKnownTypes.IResourceBuilderType);
 

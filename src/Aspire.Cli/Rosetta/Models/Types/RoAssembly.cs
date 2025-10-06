@@ -29,11 +29,12 @@ internal sealed class RoAssembly
     public MetadataReader Reader { get; }
     public AssemblyLoaderContext AssemblyLoaderContext { get; }
 
-    public RoType? GetTypeDefinition(string name)
+    public RoType? GetType(string name)
     {
         _types.Value.TryGetValue(name, out var result);
         return result;
     }
+
     public IEnumerable<RoType> GetTypeDefinitions() => _types.Value.Values;
     public IEnumerable<RoCustomAttributeData> GetCustomAttributes() => throw new NotImplementedException();
 

@@ -13,7 +13,7 @@ public class TypeResolutionTests
     {
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var testMethodsType = testAssembly.GetTypeDefinition(typeof(TestMethods).FullName!);
+        var testMethodsType = testAssembly.GetType(typeof(TestMethods).FullName!);
         Assert.NotNull(testMethodsType);
         Assert.Equal(typeof(TestMethods).FullName, testMethodsType.FullName);
     }
@@ -23,7 +23,7 @@ public class TypeResolutionTests
     {
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var testMethodsType = testAssembly.GetTypeDefinition(typeof(TestMethods).FullName!);
+        var testMethodsType = testAssembly.GetType(typeof(TestMethods).FullName!);
         Assert.NotNull(testMethodsType);
 
         var methodC = testMethodsType.GetMethod(nameof(TestMethods.MethodC));
@@ -53,7 +53,7 @@ public class TypeResolutionTests
     {
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var testMethodsType = testAssembly.GetTypeDefinition(typeof(TestMethods).FullName!);
+        var testMethodsType = testAssembly.GetType(typeof(TestMethods).FullName!);
         Assert.NotNull(testMethodsType);
 
         var methodE = testMethodsType.GetMethod(nameof(TestMethods.MethodE));
@@ -70,7 +70,7 @@ public class TypeResolutionTests
         var paramB = methodE.Parameters[1];
         Assert.Equal("b", paramB.Name);
         Assert.False(paramB.IsOptional);
-        Assert.Equal("System.Nullable`1", paramB.ParameterType.FullName);
+        Assert.Equal("System.Nullable<System.Int32>", paramB.ParameterType.FullName);
         Assert.Equal(DBNull.Value, paramB.RawDefaultValue);
 
         var paramC = methodE.Parameters[2];
@@ -82,7 +82,7 @@ public class TypeResolutionTests
         var paramD = methodE.Parameters[3];
         Assert.Equal("d", paramD.Name);
         Assert.True(paramD.IsOptional);
-        Assert.Equal("System.Nullable`1", paramD.ParameterType.FullName);
+        Assert.Equal("System.Nullable<System.Int32>", paramD.ParameterType.FullName);
         Assert.Equal(default(int?), paramD.RawDefaultValue);
     }
 
@@ -91,8 +91,8 @@ public class TypeResolutionTests
     {
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var typeA = testAssembly.GetTypeDefinition(typeof(A).FullName!);
-        var typeB = testAssembly.GetTypeDefinition(typeof(B).FullName!);
+        var typeA = testAssembly.GetType(typeof(A).FullName!);
+        var typeB = testAssembly.GetType(typeof(B).FullName!);
         Assert.NotNull(typeA);
         Assert.NotNull(typeB);
         Assert.Equal(typeof(A).FullName, typeA.FullName);
@@ -107,11 +107,11 @@ public class TypeResolutionTests
 
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var typeA1 = testAssembly.GetTypeDefinition(typeof(GenericTypeA<>).FullName!);
-        var typeA2 = testAssembly.GetTypeDefinition(typeof(GenericTypeA<,>).FullName!);
+        var typeA1 = testAssembly.GetType(typeof(GenericTypeA<>).FullName!);
+        var typeA2 = testAssembly.GetType(typeof(GenericTypeA<,>).FullName!);
 
-        var typeB1 = testAssembly.GetTypeDefinition(typeof(GenericTypeB<>).FullName!);
-        var typeB2 = testAssembly.GetTypeDefinition(typeof(GenericTypeB<,>).FullName!);
+        var typeB1 = testAssembly.GetType(typeof(GenericTypeB<>).FullName!);
+        var typeB2 = testAssembly.GetType(typeof(GenericTypeB<,>).FullName!);
 
         Assert.NotNull(typeA1);
         Assert.NotNull(typeA2);
@@ -123,15 +123,37 @@ public class TypeResolutionTests
         Assert.Equal(typeof(GenericTypeB<,>).FullName, typeB2.FullName);
     }
 
+    [Theory]
+    [InlineData("System.Int32")]
+    [InlineData("System.Int32[]")]
+    [InlineData("System.Int32[,]")]
+    [InlineData("System.Int32[,,]")]
+    [InlineData("System.Action`1")]
+    [InlineData("System.Action`2")]
+    [InlineData("System.Action<System.Int32, System.String>")]
+    [InlineData("System.Action<System.Action`1>")]
+    [InlineData("System.Action<System.Action`2>")]
+    [InlineData("System.Action<System.Action<System.Int32>>")]
+    [InlineData("System.Action<System.Action<System.Int32, System.String>>")]
+    [InlineData("System.Action<System.Action<System.Int32[], System.String[]>>[]")]
+    public void CanRoundtripTypenames(string fullName)
+    {
+        using var loader = CreateAssemblyLoaderContext(out var _);
+
+        var type = loader.GetType(fullName);
+        Assert.NotNull(type);
+        Assert.Equal(fullName, type.FullName);
+    }
+
     [Fact]
     public void NonPublicTypeDefinitionsAreIgnored()
     {
         using var loader = CreateAssemblyLoaderContext(out var testAssembly);
 
-        var publicType = testAssembly.GetTypeDefinition(typeof(PublicType).FullName!);
-        var internalType = testAssembly.GetTypeDefinition(typeof(InternalType).FullName!);
-        var privateType = testAssembly.GetTypeDefinition("Aspire.Cli.Tests.Polyglot.PrivateType");
-        var nestedType = testAssembly.GetTypeDefinition("Aspire.Cli.Tests.Polyglot.PublicSealedType+NestedType");
+        var publicType = testAssembly.GetType(typeof(PublicType).FullName!);
+        var internalType = testAssembly.GetType(typeof(InternalType).FullName!);
+        var privateType = testAssembly.GetType("Aspire.Cli.Tests.Polyglot.PrivateType");
+        var nestedType = testAssembly.GetType("Aspire.Cli.Tests.Polyglot.PublicSealedType+NestedType");
         Assert.NotNull(nestedType); // Nested types are considered public if the containing type is public
         Assert.NotNull(publicType);
         Assert.Null(internalType);

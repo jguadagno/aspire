@@ -13,14 +13,12 @@ internal sealed class RoParameterInfo
     private readonly Parameter _parameter;
     private readonly string _parameterTypeName;
     private readonly MetadataReader _reader;
-    private readonly AssemblyLoaderContext _assemblyLoaderContext;
 
     public RoParameterInfo(Parameter parameter, string parameterTypeName, RoMethodInfo declaringMethod)
     {
         _parameter = parameter;
         _parameterTypeName = parameterTypeName;
-        _reader = declaringMethod.DeclaringType.Assembly.Reader;
-        _assemblyLoaderContext = declaringMethod.DeclaringType.Assembly.AssemblyLoaderContext;
+        _reader = declaringMethod.DeclaringType.DeclaringAssembly.Reader;
         _parameterType = new(LoadParameterType);
 
         DeclaringMethod = declaringMethod;
@@ -58,15 +56,7 @@ internal sealed class RoParameterInfo
 
     private RoType LoadParameterType()
     {
-        var parameterElementType = _assemblyLoaderContext.LoadedAssemblies.Values
-                                    .Select(a => a.GetTypeDefinition(_parameterTypeName))
-                                    .FirstOrDefault(t => t is not null) ?? throw new InvalidOperationException($"Unknown type: {_parameterTypeName}");
-
-        // SequenceNumber is 0 for the return type so is 1-based, but Parameter arrays are 0-base 
-        return IsParameterArray(_reader, DeclaringMethod.MethodDefinition, _parameter.SequenceNumber - 1)
-            ? new RoArrayType(parameterElementType, 1)
-            : parameterElementType
-            ;
+        return DeclaringMethod.DeclaringType.DeclaringAssembly.AssemblyLoaderContext.GetType(_parameterTypeName) ?? throw new ArgumentException($"Unknown type: {_parameterTypeName}");
     }
 
     public override string ToString()

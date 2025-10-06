@@ -29,23 +29,23 @@ internal class WellKnownTypes(IEnumerable<RoAssembly> assemblies) : IWellKnownTy
             throw new InvalidOperationException("Aspire.Hosting assembly not found.");
 
     public RoType ResourceType =>
-        _aspireHostingAssembly.GetTypeDefinition("Aspire.Hosting.ApplicationModel.Resource") ??
+        _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.Resource") ??
         throw new InvalidOperationException("Resource type not found.");
 
     public RoType IResourceType =>
-        _aspireHostingAssembly.GetTypeDefinition("Aspire.Hosting.ApplicationModel.IResource") ??
+        _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResource") ??
         throw new InvalidOperationException("IResource type not found.");
 
     public RoType IResourceWithConnectionStringType =>
-        _aspireHostingAssembly.GetTypeDefinition("Aspire.Hosting.ApplicationModel.IResourceWithConnectionString") ??
+        _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResourceWithConnectionString") ??
         throw new InvalidOperationException("IResourceWithConnectionString type not found.");
 
     public RoType IResourceBuilderType =>
-        _aspireHostingAssembly.GetTypeDefinition("Aspire.Hosting.ApplicationModel.IResourceBuilder`1") ??
+        _aspireHostingAssembly.GetType("Aspire.Hosting.ApplicationModel.IResourceBuilder`1") ??
         throw new InvalidOperationException("IResourceBuilder type not found.");
 
     public RoType IDistributedApplicationBuilderType =>
-        _aspireHostingAssembly.GetTypeDefinition("Aspire.Hosting.IDistributedApplicationBuilder") ??
+        _aspireHostingAssembly.GetType("Aspire.Hosting.IDistributedApplicationBuilder") ??
         throw new InvalidOperationException("IDistributedApplicationBuilder type not found.");
 
     public bool TryGetResourceBuilderTypeArgument(RoType resourceBuilderType, [NotNullWhen(true)] out RoType? resourceType)
@@ -114,7 +114,7 @@ internal class WellKnownTypes(IEnumerable<RoAssembly> assemblies) : IWellKnownTy
 
         foreach (var assembly in _assemblies)
         {
-            var typeInAssembly = assembly.GetTypeDefinition(type.FullName);
+            var typeInAssembly = assembly.GetType(type.FullName);
             if (typeInAssembly != null)
             {
                 knownType = typeInAssembly;

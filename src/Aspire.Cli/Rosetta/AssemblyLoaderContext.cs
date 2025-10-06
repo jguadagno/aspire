@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using Aspire.Cli.Rosetta.Models.Types;
@@ -28,6 +29,8 @@ internal class AssemblyLoaderContext : IDisposable
     private List<IDisposable> _disposables = [];
     private bool _disposed;
     private readonly Dictionary<string, RoAssembly> _loadedAssemblies = [];
+    // Cache for constructed (generic / array) types so repeated resolutions are cheap.
+    private readonly Dictionary<string, RoType> _constructedTypes = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, RoAssembly> LoadedAssemblies => _loadedAssemblies;
 
@@ -62,54 +65,275 @@ internal class AssemblyLoaderContext : IDisposable
         }
     }
 
-    public bool TryGetType(EntityHandle entityHandle, MetadataReader reader, RoType? type)
+    public RoType? GetType(string name)
     {
-        type = null;
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        // Check constructed-type cache first
+        if (_constructedTypes.TryGetValue(name, out var cached))
+        {
+            return cached;
+        }
+
+        ReadOnlySpan<char> span = name.AsSpan();
+
+        if (span.IndexOf('*') >= 0)
+        {
+            throw new ArgumentException("Pointer types are not supported", nameof(name));
+        }
+        if (span.IndexOf('&') >= 0)
+        {
+            throw new ArgumentException("Reference types are not supported", nameof(name));
+        }
+
+        // Simple fast path (no generics or arrays) - don't cache
+        if (span.IndexOf('<') < 0 && span.IndexOf('[') < 0)
+        {
+            foreach (var asm in LoadedAssemblies.Values)
+            {
+                var type = asm.GetType(name);
+                if (type is not null)
+                {
+                    return type;
+                }
+            }
+            return null;
+        }
+
+        RoType? Resolve(ReadOnlySpan<char> typeSpan)
+        {
+            var key = new string(typeSpan);
+            if (_constructedTypes.TryGetValue(key, out var constructed))
+            {
+                return constructed;
+            }
+
+            // Find end of base type (first '<' or '[')
+            var genericIdx = typeSpan.IndexOf('<');
+            var arrayIdx = typeSpan.IndexOf('[');
+            var baseEnd = genericIdx >= 0 && arrayIdx >= 0 ? Math.Min(genericIdx, arrayIdx) :
+                          genericIdx >= 0 ? genericIdx :
+                          arrayIdx >= 0 ? arrayIdx : typeSpan.Length;
+
+            var baseNameSpan = typeSpan.Slice(0, baseEnd);
+            var baseNameStr = new string(baseNameSpan);
+
+            RoType? baseTypeLocal = null;
+            foreach (var asm in LoadedAssemblies.Values)
+            {
+                baseTypeLocal = asm.GetType(baseNameStr);
+                if (baseTypeLocal is not null)
+                {
+                    break;
+                }
+            }
+            if (baseTypeLocal is null)
+            {
+                return null;
+            }
+
+            var idx = baseEnd;
+
+            // Generic instantiation
+            if (idx < typeSpan.Length && typeSpan[idx] == '<')
+            {
+                var depth = 0;
+                var startArgs = idx + 1;
+                var pos = startArgs;
+                for (; pos < typeSpan.Length; pos++)
+                {
+                    var ch = typeSpan[pos];
+                    if (ch == '<')
+                    {
+                        depth++;
+                    }
+                    else if (ch == '>')
+                    {
+                        if (depth == 0)
+                        {
+                            break;
+                        }
+                        depth--;
+                    }
+                }
+                if (pos >= typeSpan.Length)
+                {
+                    return null; // malformed
+                }
+
+                var argsSpan = typeSpan.Slice(startArgs, pos - startArgs);
+                var argNameList = SplitGenericArguments(argsSpan);
+                var resolvedArgs = new List<RoType>(argNameList.Count);
+                foreach (var argNameStr in argNameList)
+                {
+                    var resolvedArg = Resolve(argNameStr.AsSpan());
+                    if (resolvedArg is null)
+                    {
+                        return null;
+                    }
+                    resolvedArgs.Add(resolvedArg);
+                }
+                baseTypeLocal = new RoGenericType(baseTypeLocal, resolvedArgs);
+                idx = pos + 1; // past '>'
+            }
+
+            // Arrays (jagged / multi-dimensional)
+            while (idx < typeSpan.Length && typeSpan[idx] == '[')
+            {
+                var close = typeSpan.Slice(idx + 1).IndexOf(']');
+                if (close < 0)
+                {
+                    return null; // malformed
+                }
+                var rankSlice = typeSpan.Slice(idx + 1, close); // inside brackets
+                var rank = 1;
+                if (!rankSlice.IsEmpty)
+                {
+                    var commas = 0;
+                    for (var i2 = 0; i2 < rankSlice.Length; i2++)
+                    {
+                        if (rankSlice[i2] == ',')
+                        {
+                            commas++;
+                        }
+                    }
+                    rank = commas + 1;
+                }
+                baseTypeLocal = new RoArrayType(baseTypeLocal, rank);
+                idx += close + 2; // move past "]"
+            }
+
+            _constructedTypes[key] = baseTypeLocal;
+            return baseTypeLocal;
+        }
+
+        try
+        {
+            return Resolve(span);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    private static List<string> SplitGenericArguments(ReadOnlySpan<char> text)
+    {
+        var list = new List<string>();
+        var depth = 0;
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var ch = text[i];
+            switch (ch)
+            {
+                case '<':
+                    depth++;
+                    break;
+                case '>':
+                    depth--;
+                    break;
+                case ',':
+                    if (depth == 0)
+                    {
+                        Add(text.Slice(start, i - start), list);
+                        start = i + 1;
+                    }
+                    break;
+            }
+        }
+        if (start <= text.Length)
+        {
+            Add(text.Slice(start), list);
+        }
+        return list;
+
+        static void Add(ReadOnlySpan<char> slice, List<string> target)
+        {
+            var s = 0;
+            var e = slice.Length - 1;
+            while (s <= e && char.IsWhiteSpace(slice[s]))
+            {
+                s++;
+            }
+            while (e >= s && char.IsWhiteSpace(slice[e]))
+            {
+                e--;
+            }
+            if (e >= s)
+            {
+                target.Add(new string(slice.Slice(s, e - s + 1)));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Attempts to retrieve the fully qualified name of the specified entity represented by the given handle.
+    /// </summary>
+    /// <remarks>This method supports type definitions, type references, and type specifications. For type
+    /// specifications representing arrays, the full name reflects the element type and array rank. If the entity cannot
+    /// be resolved or is not supported, the method returns false and <paramref name="fullName"/> is set to <see
+    /// langword="null"/>.</remarks>
+    /// <param name="entityHandle">The handle identifying the metadata entity for which to obtain the full name. Must not be nil.</param>
+    /// <param name="reader">The metadata reader used to access information about the entity.</param>
+    /// <param name="fullName">When this method returns, contains the fully qualified name of the entity if found; otherwise, <see
+    /// langword="null"/>. This parameter is passed uninitialized.</param>
+    /// <returns>true if the full name was successfully retrieved; otherwise, false.</returns>
+    public static bool TryGetFullName(EntityHandle entityHandle, MetadataReader reader, [NotNullWhen(true)] out string? fullName)
+    {
+        fullName = null;
 
         if (entityHandle.IsNil)
         {
             return false;
         }
 
-        // Resolve the handle to get the full type name
-        string? fullName;
-
         switch (entityHandle.Kind)
         {
             case HandleKind.TypeDefinition:
-                // Base type is defined in the same assembly
+            {
                 var typeDefHandle = (TypeDefinitionHandle)entityHandle;
                 var typeDef = reader.GetTypeDefinition(typeDefHandle);
                 var name = reader.GetString(typeDef.Name);
                 var namespaceName = typeDef.Namespace.IsNil ? string.Empty : reader.GetString(typeDef.Namespace);
                 fullName = string.IsNullOrEmpty(namespaceName) ? name : $"{namespaceName}.{name}";
-                break;
+                return true;
+            }
 
             case HandleKind.TypeReference:
-                // Base type is defined in another assembly
+            {
                 var typeRefHandle = (TypeReferenceHandle)entityHandle;
                 var typeRef = reader.GetTypeReference(typeRefHandle);
                 var refName = reader.GetString(typeRef.Name);
                 var refNamespace = typeRef.Namespace.IsNil ? string.Empty : reader.GetString(typeRef.Namespace);
                 fullName = string.IsNullOrEmpty(refNamespace) ? refName : $"{refNamespace}.{refName}";
-                break;
+                return true;
+            }
 
             case HandleKind.TypeSpecification:
-                // Base type is a generic instantiation or other complex type (array, pointer, etc.)
-                // TODO: Implement type specification resolution for generic base types
-
-                return false;
+            {
+                // Complex shape: array / generic instantiation / pointer / byref / modified types.
+                // Use the DisplayTypeProvider to decode the signature into a displayable full name.
+                try
+                {
+                    var tsHandle = (TypeSpecificationHandle)entityHandle;
+                    var ts = reader.GetTypeSpecification(tsHandle);
+                    var provider = new DisplayTypeProvider(reader);
+                    fullName = ts.DecodeSignature(provider, genericContext: null);
+                    return fullName is not null;
+                }
+                catch
+                {
+                    fullName = null;
+                    return false;
+                }
+            }
 
             default:
-                // Unknown handle type
                 return false;
         }
-
-        type = LoadedAssemblies.Values
-                .Select(a => a.GetTypeDefinition(fullName))
-                .FirstOrDefault(t => t is not null);
-
-        return type is not null;
     }
 
     /// <summary>

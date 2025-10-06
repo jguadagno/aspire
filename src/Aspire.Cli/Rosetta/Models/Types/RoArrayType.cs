@@ -9,7 +9,7 @@ internal class RoArrayType : RoType
     private readonly int _rank;
 
     public RoArrayType(RoType elementType, int rank)
-        :base(elementType.Assembly)
+        :base(elementType.DeclaringAssembly)
     {
         _elementType = elementType;
         _rank = rank;

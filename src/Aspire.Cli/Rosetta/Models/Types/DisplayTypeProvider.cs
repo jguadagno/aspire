@@ -14,9 +14,9 @@ internal sealed class DisplayTypeProvider : ISignatureTypeProvider<string, objec
     public string GetArrayType(string elementType, ArrayShape shape)
         => $"{elementType}[{new string(',', shape.Rank - 1)}]";
 
-    public string GetByReferenceType(string elementType) => $"{elementType}";
-    public string GetPointerType(string elementType) => $"{elementType}";
-    public string GetSZArrayType(string elementType) => $"{elementType}";
+    public string GetByReferenceType(string elementType) => $"{elementType}&";
+    public string GetPointerType(string elementType) => $"{elementType}*";
+    public string GetSZArrayType(string elementType) => $"{elementType}[]";
     public string GetPinnedType(string elementType) => elementType;
 
     public string GetFunctionPointerType(MethodSignature<string> signature)
@@ -26,7 +26,7 @@ internal sealed class DisplayTypeProvider : ISignatureTypeProvider<string, objec
     }
 
     public string GetGenericInstantiation(string genericType, ImmutableArray<string> typeArguments)
-        => $"{genericType}"; // Aspire.Hosting.ApplicationModel.IResourceBuilder`1
+        => $"{genericType}<{string.Join(", ", typeArguments)}>";
 
     public string GetGenericMethodParameter(object? genericContext, int index) => $"!!{index}";
     public string GetGenericTypeParameter(object? genericContext, int index) => $"!{index}";

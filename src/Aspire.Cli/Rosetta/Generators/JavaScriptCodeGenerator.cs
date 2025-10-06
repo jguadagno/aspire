@@ -530,7 +530,7 @@ internal sealed class JavaScriptCodeGenerator(ApplicationModel appModel, IIntera
                         name: 'INVOKE', 
                         source: this[_name], 
                         target: result[_name], 
-                        methodAssembly: '{{overload.DeclaringType?.Assembly.Name}}', 
+                        methodAssembly: '{{overload.DeclaringType?.DeclaringAssembly.Name}}', 
                         methodType: '{{overload.DeclaringType?.FullName}}', 
                         methodName: '{{overload.Name}}', 
                         methodArgumentTypes: [{{string.Join(", ", overload.Parameters.Select(p => "'" + p.ParameterType.FullName + "'"))}}], 

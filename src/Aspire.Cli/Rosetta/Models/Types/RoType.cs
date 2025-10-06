@@ -7,10 +7,10 @@ internal abstract class RoType
 {
     protected RoType(RoAssembly assembly)
     {
-        Assembly = assembly;
+        DeclaringAssembly = assembly;
     }
 
-    public RoAssembly Assembly { get; }
+    public RoAssembly DeclaringAssembly { get; }
 
     public abstract string Name { get; }
     public abstract string FullName { get; }

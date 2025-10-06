@@ -4,7 +4,6 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
-using static Aspire.Cli.Rosetta.Models.Types.SrmTypeShape;
 
 namespace Aspire.Cli.Rosetta.Models.Types;
 
@@ -22,8 +21,8 @@ internal sealed class RoMethodInfo
         DeclaringType = declaringType;
 
         // Note: assemblyLoaderContext will be used for resolving parameter/return types from other assemblies
-        _assemblyLoaderContext = declaringType.Assembly.AssemblyLoaderContext;
-        _reader = declaringType.Assembly.Reader;
+        _assemblyLoaderContext = declaringType.DeclaringAssembly.AssemblyLoaderContext;
+        _reader = declaringType.DeclaringAssembly.Reader;
 
         // Extract method name
         Name = _reader.GetString(methodDefinition.Name) ?? throw new InvalidOperationException("Invalid method, missing Name.");
@@ -116,7 +115,7 @@ internal sealed class RoMethodInfo
                             var name = _reader.GetString(typeDef.Name);
                             var ns = typeDef.Namespace.IsNil ? string.Empty : _reader.GetString(typeDef.Namespace);
                             var fullName = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
-                            attributeType = DeclaringType.Assembly.GetTypeDefinition(fullName);
+                            attributeType = DeclaringType.DeclaringAssembly.GetType(fullName);
                             break;
                         }
                     case HandleKind.MemberReference:
@@ -127,9 +126,9 @@ internal sealed class RoMethodInfo
 
                             if (fullName is not null)
                             {
-                                attributeType = DeclaringType.Assembly.GetTypeDefinition(fullName) ??
+                                attributeType = DeclaringType.DeclaringAssembly.GetType(fullName) ??
                                     _assemblyLoaderContext.LoadedAssemblies.Values
-                                        .Select(a => a.GetTypeDefinition(fullName))
+                                        .Select(a => a.GetType(fullName))
                                         .FirstOrDefault(t => t is not null);
                             }
                             break;
@@ -157,15 +156,7 @@ internal sealed class RoMethodInfo
     {
         var returnType = MethodDefinition.DecodeSignature(new DisplayTypeProvider(_reader), null).ReturnType;
 
-        var baseReturnType = DeclaringType.Assembly.GetTypeDefinition(returnType) ??
-                                _assemblyLoaderContext.LoadedAssemblies.Values
-                                    .Select(a => a.GetTypeDefinition(returnType))
-                                    .FirstOrDefault(t => t is not null) ?? throw new InvalidOperationException($"Unknown type: {returnType}");
-
-        return IsReturnArray(_reader, MethodDefinition)
-            ? new RoArrayType(baseReturnType, 1)
-            : baseReturnType
-            ;
+        return DeclaringType.DeclaringAssembly.AssemblyLoaderContext.GetType(returnType) ?? throw new ArgumentException($"Unknown type: {returnType}");
     }
 
     public override string ToString()
