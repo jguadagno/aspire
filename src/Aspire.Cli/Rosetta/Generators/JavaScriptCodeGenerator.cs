@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using Aspire.Cli.Embedded;
 using Aspire.Cli.Interaction;
@@ -422,7 +423,10 @@ internal sealed class JavaScriptCodeGenerator(ApplicationModel appModel, IIntera
 
                         overloadParameterClass += "\n";
 
-                        static bool HasDefaultValue(RoParameterInfo p) => p.RawDefaultValue != DBNull.Value && p.RawDefaultValue is not null;
+                        // These are the two values that are assigned to RawDefaultValue when there is no default value, based on the value of IsOptional
+                        // c.f. https://source.dot.net/#System.Reflection.MetadataLoadContext/System/Reflection/TypeLoading/Parameters/Ecma/EcmaFatMethodParameter.cs,48
+                        // And also c.f. the RoParameterInfo.cs implementation
+                        static bool HasDefaultValue(RoParameterInfo p) => p.RawDefaultValue != DBNull.Value && p.RawDefaultValue != Missing.Value;
 
                         // Make a copy ctor
                         // constructor(args: Partial <Type> = { }) {
@@ -451,7 +455,7 @@ internal sealed class JavaScriptCodeGenerator(ApplicationModel appModel, IIntera
                                 }
                                 else if (p.ParameterType.IsEnum)
                                 {
-                                    defaultValue += $" = {p.ParameterType.Name}.{p.DefaultValue}";
+                                    defaultValue += $" = {p.ParameterType.Name}.{p.RawDefaultValue}";
                                 }
                                 else
                                 {
@@ -579,19 +583,11 @@ internal sealed class JavaScriptCodeGenerator(ApplicationModel appModel, IIntera
 
         if (t.IsArray)
         {
-            var elementType = t.ElementType;
+            var elementType = t.GetElementType();
             return $"{PrettyPrintCSharpType(elementType)}[]";
         }
 
-        if (t.IsByRef)
-        {
-            return $"ref {PrettyPrintCSharpType(t.ElementType!)}";
-        }
-
-        if (t.IsPointer)
-        {
-            return $"{PrettyPrintCSharpType(t.ElementType!)}*";
-        }
+        // Ignore IsByRef and IsPointer for now
 
         return t.Name;
     }
@@ -729,7 +725,7 @@ internal sealed class JavaScriptCodeGenerator(ApplicationModel appModel, IIntera
             { IsGenericType: true } when type.GenericTypeDefinition == _appModel.WellKnownTypes.GetKnownType(typeof(IReadOnlyList<>)) => "Array",
             { IsGenericType: true } when type.GenericTypeDefinition == _appModel.WellKnownTypes.GetKnownType(typeof(IReadOnlyCollection<>)) => "Array",
             { IsGenericType: true } when type.GenericTypeDefinition == _appModel.WellKnownTypes.GetKnownType(typeof(Action<>)) => $"({String.Join(" ,", type.GenericArguments.Select((x, i) => $"p{i}: {FormatJsType(x)}"))}) => void",
-            { } when type.IsArray => $"Array<{FormatJsType(type.ElementType ?? _appModel.WellKnownTypes.GetKnownType(typeof(object)))}>",
+            { } when type.IsArray => $"Array<{FormatJsType(type.GetElementType() ?? _appModel.WellKnownTypes.GetKnownType(typeof(object)))}>",
             { } when type == _appModel.WellKnownTypes.GetKnownType(typeof(Char)) => "string",
             { } when type == _appModel.WellKnownTypes.GetKnownType(typeof(String)) => "string",
             { } when type == _appModel.WellKnownTypes.GetKnownType(typeof(Version)) => "string",

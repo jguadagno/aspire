@@ -1,106 +1,93 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Reflection.Metadata;
-
 namespace Aspire.Cli.Rosetta.Models.Types;
 
-internal sealed class RoType
+internal abstract class RoType
 {
-    private readonly Lazy<RoType[]> _genericParameterConstraints;
-    private readonly TypeDefinition _typeDefinition;
-    private readonly MetadataReader _reader;
-    private readonly AssemblyLoaderContext _assemblyLoaderContext;
-    private readonly Lazy<RoType?> _baseType;
-    private readonly Lazy<IReadOnlyList<RoType>> _interfaces;
-    private readonly Lazy<bool> _isGenericType;
-    private readonly Lazy<bool> _isEnum;
-    private readonly Lazy<IReadOnlyList<RoMethodInfo>> _methods;
-    private readonly Lazy<IReadOnlyList<RoType>> _genericArguments;
-    private readonly Lazy<IReadOnlyList<RoType>> _genericTypeArguments;
-    private readonly Lazy<bool> _containsGenericParameters;
-
-    public RoType(TypeDefinition typeDefinition, RoAssembly assembly, MetadataReader reader, AssemblyLoaderContext assemblyLoaderContext)
+    protected RoType(RoAssembly assembly)
     {
-        _genericParameterConstraints = new(LoadGenericParameterConstraints);
-        _typeDefinition = typeDefinition;
-        _reader = reader;
-        _assemblyLoaderContext = assemblyLoaderContext;
         Assembly = assembly;
-
-        // Initialize lazy-loaded fields
-        _baseType = new(LoadBaseType);
-        _interfaces = new(LoadInterfaces);
-        _isGenericType = new(LoadIsGenericType);
-        _isEnum = new(LoadIsEnum);
-        _methods = new(LoadMethods);
-        _genericArguments = new(LoadGenericArguments);
-        _genericTypeArguments = new(LoadGenericTypeArguments);
-        _containsGenericParameters = new(LoadContainsGenericParameters);
-
-        // Extract basic type information
-        Name = reader.GetString(typeDefinition.Name) ?? throw new InvalidOperationException("Invalid type, missing Name.");
-
-        // Get namespace and construct full name
-        var namespaceName = typeDefinition.Namespace.IsNil ? string.Empty : reader.GetString(typeDefinition.Namespace);
-        FullName = string.IsNullOrEmpty(namespaceName) ? Name : $"{namespaceName}.{Name}";
-
-        // Extract type attributes
-        var attributes = typeDefinition.Attributes;
-        var visibility = attributes & System.Reflection.TypeAttributes.VisibilityMask;
-        IsPublic = visibility == System.Reflection.TypeAttributes.Public ||
-                  visibility == System.Reflection.TypeAttributes.NestedPublic;
-
-        IsAbstract = (attributes & System.Reflection.TypeAttributes.Abstract) != 0;
-        IsSealed = (attributes & System.Reflection.TypeAttributes.Sealed) != 0;
-        IsInterface = (attributes & System.Reflection.TypeAttributes.Interface) != 0;
-        IsNested = typeDefinition.IsNested;
-        IsTypeDefinition = true;
-
-        // Simple properties that don't require complex resolution
-        IsByRef = false;
-        IsPointer = false;
-        IsArray = false;
-        IsGenericParameter = false;
-        ElementType = null;
-        GenericTypeDefinition = null;
     }
 
     public RoAssembly Assembly { get; }
-    public string Name { get; }
-    public string FullName { get; }
-    public bool IsAbstract { get; }
-    public bool IsPublic { get; }
-    public bool IsGenericType => _isGenericType.Value;
-    public bool IsByRef { get; }
-    public bool IsPointer { get; }
-    public bool IsEnum => _isEnum.Value;
-    public bool IsArray { get; }
-    public bool IsTypeDefinition { get; }
-    public bool IsSealed { get; }
-    public bool IsNested { get; }
-    public RoType? ElementType { get; }
-    public RoType? GenericTypeDefinition { get; }
-    public IReadOnlyList<RoType> GenericArguments => _genericArguments.Value;
-    public bool IsGenericParameter { get; }
-    public bool IsInterface { get; }
-    public IEnumerable<string> GetEnumNames() => throw new NotImplementedException();
-    public bool ContainsGenericParameters => _containsGenericParameters.Value;
-    public IReadOnlyList<RoType> Interfaces => _interfaces.Value;
-    public RoType? BaseType => _baseType.Value;
-    public IReadOnlyList<RoType> GenericTypeArguments => _genericTypeArguments.Value;
-    public RoType MakeGenericType(params RoType[] typeArguments) => throw new NotImplementedException();
-    public IReadOnlyList<RoMethodInfo> Methods => _methods.Value;
-    public RoMethodInfo? GetMethod(string name)
-    {
-        return Methods.FirstOrDefault(m => m.Name == name);
-    }
-    public IEnumerable<RoCustomAttributeData> GetCustomAttributes() => throw new NotImplementedException();
-    public IReadOnlyList<RoType> GenericParameterConstraints => _genericParameterConstraints.Value;
+
+    public abstract string Name { get; }
+    public abstract string FullName { get; }
+    public virtual bool IsAbstract { get; protected set; }
+    public virtual bool IsPublic { get; protected set; }
+    public virtual bool IsEnum { get; protected set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the current type represents an array.
+    /// </summary>
+    public virtual bool IsArray { get; }
+
+    /// <summary>
+    /// Retrieves the type of the elements contained within an array, pointer, or reference type.
+    /// </summary>
+    public virtual RoType? GetElementType() => null;
+
+    public virtual int GetArrayRank() => throw new ArgumentException("Must be an array type.");
+
+    /// <summary>
+    /// Gets a value indicating whether the current type is a generic type, e.g. IResourceBuilder&lt;&gt; or IResourceBuilder&lt;Container%gt;
+    /// </summary>
+    public virtual bool IsGenericType { get; protected set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the current type represents a type definition rather than a type reference or
+    /// constructed type, e.g., IResourceBuilder&lt;&gt;
+    /// </summary>
+    public virtual bool IsTypeDefinition { get; protected set; }
+
+    public virtual bool IsSealed { get; protected set; }
+    public virtual bool IsNested { get; protected set; }
+
+    /// <summary>
+    /// Gets the generic type definition for this type, if it represents a constructed generic type; otherwise, returns
+    /// null.
+    /// </summary>
+    /// <remarks>Use this property to obtain the generic type definition from a constructed generic type, such
+    /// as List&lt;int&gt; yielding List&lt;&gt;. If the type is not a constructed generic type, the property returns
+    /// null.
+    /// </remarks>
+    public virtual RoType? GenericTypeDefinition { get; protected set; }
+
+    public virtual IReadOnlyList<RoType> GenericArguments => [];
+    public virtual bool IsGenericParameter { get; protected set; }
+    public virtual bool IsInterface { get; protected set; }
+    public virtual IEnumerable<string> GetEnumNames() => throw new NotImplementedException();
+    public virtual bool ContainsGenericParameters { get; protected set; }
+    public virtual IReadOnlyList<RoType> Interfaces => [];
+
+    /// <summary>
+    /// Gets the base type of the current type, if one exists.
+    /// </summary>
+    /// <remarks>
+    /// This is null for interfaces and System.Object.
+    /// </remarks>
+    public virtual RoType? BaseType => null;
+    public virtual IReadOnlyList<RoType> GenericTypeArguments => [];
+    public virtual RoType MakeGenericType(params RoType[] typeArguments) => throw new NotImplementedException();
+
+    /// <summary>
+    /// Gets the collection of method metadata associated with the current type.
+    /// </summary>
+    /// <remarks>Only public methods. Doesn't include property accessors.
+    /// The returned list provides read-only access to method information. The order of methods in
+    /// the collection is not guaranteed and may vary depending on the underlying type system.
+    /// </remarks>
+    public virtual IReadOnlyList<RoMethodInfo> Methods => [];
+    public virtual RoMethodInfo? GetMethod(string name) => null;
+    public virtual IEnumerable<RoCustomAttributeData> GetCustomAttributes() => throw new NotImplementedException();
+    public virtual IReadOnlyList<RoType> GenericParameterConstraints => [];
+
     public bool IsAssignableTo(RoType targetType)
     {
         return targetType.IsAssignableFrom(this);
     }
+
     public bool IsAssignableFrom(RoType? c)
     {
         if (c == null)
@@ -126,7 +113,7 @@ internal sealed class RoType
         }
 
         // Check if this type is an interface that c implements
-        if (this.IsInterface)
+        if (IsInterface)
         {
             return c.Interfaces.Contains(this) || c.Interfaces.Any(this.IsAssignableFrom);
         }
@@ -140,139 +127,6 @@ internal sealed class RoType
             }
         }
 
-        return false;
-    }
-
-    private RoType[] LoadGenericParameterConstraints()
-    {
-        throw new NotImplementedException();
-    }
-
-    private RoType? LoadBaseType()
-    {
-        var baseTypeHandle = _typeDefinition.BaseType;
-
-        // If there's no base type, return null (e.g., System.Object or interfaces)
-        if (baseTypeHandle.IsNil)
-        {
-            return null;
-        }
-
-        // Resolve the handle to get the full type name
-        string? baseTypeFullName;
-
-        switch (baseTypeHandle.Kind)
-        {
-            case HandleKind.TypeDefinition:
-                // Base type is defined in the same assembly
-                var typeDefHandle = (TypeDefinitionHandle)baseTypeHandle;
-                var typeDef = _reader.GetTypeDefinition(typeDefHandle);
-                var name = _reader.GetString(typeDef.Name);
-                var namespaceName = typeDef.Namespace.IsNil ? string.Empty : _reader.GetString(typeDef.Namespace);
-                baseTypeFullName = string.IsNullOrEmpty(namespaceName) ? name : $"{namespaceName}.{name}";
-                return Assembly.GetType(baseTypeFullName);
-
-            case HandleKind.TypeReference:
-                // Base type is defined in another assembly
-                var typeRefHandle = (TypeReferenceHandle)baseTypeHandle;
-                var typeRef = _reader.GetTypeReference(typeRefHandle);
-                var refName = _reader.GetString(typeRef.Name);
-                var refNamespace = typeRef.Namespace.IsNil ? string.Empty : _reader.GetString(typeRef.Namespace);
-                baseTypeFullName = string.IsNullOrEmpty(refNamespace) ? refName : $"{refNamespace}.{refName}";
-
-                return Assembly.GetType(baseTypeFullName) ??
-                                _assemblyLoaderContext.LoadedAssemblies.Values
-                                    .Select(a => a.GetType(baseTypeFullName))
-                                    .FirstOrDefault(t => t is not null);
-
-                throw new NotImplementedException($"Cross-assembly type resolution not implemented: {baseTypeFullName}");
-
-            case HandleKind.TypeSpecification:
-                // Base type is a generic instantiation or other complex type
-                // For now, we'll skip complex type specifications
-                // TODO: Implement type specification resolution for generic base types
-
-                return null;
-
-            default:
-                // Unknown handle type
-                return null;
-        }
-    }
-
-    private IReadOnlyList<RoType> LoadInterfaces()
-    {
-        // TODO: Implement interface resolution
-        // This would involve getting interface implementations from TypeDefinition.GetInterfaceImplementations()
-        // and resolving each interface handle to an RoType
-        return [];
-    }
-
-    private bool LoadIsGenericType()
-    {
-        // Check if the type has generic parameters
-        var genericParams = _typeDefinition.GetGenericParameters();
-        return genericParams.Count > 0;
-    }
-
-    private bool LoadIsEnum()
-    {
-        // Check if the base type is System.Enum
-        var baseType = BaseType;
-        return baseType?.FullName == "System.Enum";
-    }
-
-    private IReadOnlyList<RoMethodInfo> LoadMethods()
-    {
-        var methods = new List<RoMethodInfo>();
-
-        foreach (var methodHandle in _typeDefinition.GetMethods())
-        {
-            var methodDef = _reader.GetMethodDefinition(methodHandle);
-
-            // Extract method attributes to filter
-            var attributes = methodDef.Attributes;
-            var memberAccess = attributes & System.Reflection.MethodAttributes.MemberAccessMask;
-            var isPublic = memberAccess == System.Reflection.MethodAttributes.Public;
-
-            // Skip non-public methods for now (could be configurable later)
-            if (!isPublic)
-            {
-                continue;
-            }
-
-            // Create RoMethodInfo instance - all metadata extraction happens in constructor
-            var method = new RoMethodInfo(methodDef, this, _reader, _assemblyLoaderContext);
-            methods.Add(method);
-        }
-
-        return methods;
-    }
-
-
-    private IReadOnlyList<RoType> LoadGenericArguments()
-    {
-        // TODO: Implement generic arguments resolution
-        // This would be used for constructed generic types
-        return [];
-    }
-
-    private IReadOnlyList<RoType> LoadGenericTypeArguments()
-    {
-        // TODO: Implement generic type arguments resolution
-        // This would be used for generic type definitions
-        return [];
-    }
-
-    private bool LoadContainsGenericParameters()
-    {
-        // Check if this type or any of its generic arguments contain unresolved generic parameters
-        if (IsGenericType)
-        {
-            // For now, assume generic types contain generic parameters
-            // Full implementation would need to check if all generic parameters are resolved
-            return true;
-        }
         return false;
     }
 

@@ -811,19 +811,11 @@ internal sealed class PythonCodeGenerator(ApplicationModel appModel) : ICodeGene
 
         if (t.IsArray)
         {
-            var elementType = t.ElementType;
+            var elementType = t.GetElementType();
             return $"{PrettyPrintCSharpType(elementType)}[]";
         }
 
-        if (t.IsByRef)
-        {
-            return $"ref {PrettyPrintCSharpType(t.ElementType!)}";
-        }
-
-        if (t.IsPointer)
-        {
-            return $"{PrettyPrintCSharpType(t.ElementType!)}*";
-        }
+        // Ignore IsByRef and IsPointer for simplicity
 
         return t.Name;
     }

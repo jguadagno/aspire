@@ -6,38 +6,7 @@ using System.Reflection.Metadata;
 
 namespace Aspire.Cli.Rosetta.Models.Types;
 
-//sealed class SimpleTypeProvider : ISignatureTypeProvider<string, object?>
-//{
-//    private readonly MetadataReader _md;
-//    public SimpleTypeProvider(MetadataReader md) => _md = md;
-
-//    public string GetPrimitiveType(PrimitiveTypeCode typeCode) => typeCode.ToString();
-//    public string GetTypeFromDefinition(MetadataReader r, TypeDefinitionHandle h, byte rawTypeKind)
-//        => r.GetString(r.GetTypeDefinition(h).Name);
-//    public string GetTypeFromReference(MetadataReader r, TypeReferenceHandle h, byte rawTypeKind)
-//        => r.GetString(r.GetTypeReference(h).Name);
-//    public string GetTypeFromSpecification(MetadataReader r, object? ctx, TypeSpecificationHandle h, byte rawTypeKind)
-//        => "<spec>";
-//    // implement array/pointer/etc. if you need them
-//    public string GetSZArrayType(string elementType) => elementType + "[]";
-//    public string GetPointerType(string elementType) => elementType + "*";
-//    public string GetByReferenceType(string elementType) => elementType + "&";
-//    public string GetGenericInstantiation(string genericType, ImmutableArray<string> typeArguments)
-//        => $"{genericType}<{string.Join(", ", typeArguments)}>";
-//    // others return unmodified
-//    public string GetModifiedType(string modifier, string unmodifiedType, bool isRequired) => unmodifiedType;
-//    public string GetFunctionPointerType(MethodSignature<string> s) => "fnptr";
-//    public string GetGenericMethodParameter(object? ctx, int index) => "!!" + index;
-//    public string GetGenericTypeParameter(object? ctx, int index) => "!" + index;
-//    public string GetPinnedType(string elementType) => elementType;
-
-//    public string GetArrayType(string elementType, ArrayShape shape)
-//    {
-//        throw new NotImplementedException();
-//    }
-//}
-
-sealed class DisplayTypeProvider : ISignatureTypeProvider<string, object?>
+internal sealed class DisplayTypeProvider : ISignatureTypeProvider<string, object?>
 {
     private readonly MetadataReader _md;
     public DisplayTypeProvider(MetadataReader md) => _md = md;
@@ -45,9 +14,9 @@ sealed class DisplayTypeProvider : ISignatureTypeProvider<string, object?>
     public string GetArrayType(string elementType, ArrayShape shape)
         => $"{elementType}[{new string(',', shape.Rank - 1)}]";
 
-    public string GetByReferenceType(string elementType) => $"{elementType}&";
-    public string GetPointerType(string elementType) => $"{elementType}*";
-    public string GetSZArrayType(string elementType) => $"{elementType}[]";
+    public string GetByReferenceType(string elementType) => $"{elementType}";
+    public string GetPointerType(string elementType) => $"{elementType}";
+    public string GetSZArrayType(string elementType) => $"{elementType}";
     public string GetPinnedType(string elementType) => elementType;
 
     public string GetFunctionPointerType(MethodSignature<string> signature)
@@ -98,6 +67,7 @@ sealed class DisplayTypeProvider : ISignatureTypeProvider<string, object?>
         PrimitiveTypeCode.String => typeof(string).FullName!,
         PrimitiveTypeCode.IntPtr => typeof(nint).FullName!,
         PrimitiveTypeCode.UIntPtr => typeof(nuint).FullName!,
+        PrimitiveTypeCode.Object => typeof(object).FullName!,
         _ => typeCode.ToString()
     };
 

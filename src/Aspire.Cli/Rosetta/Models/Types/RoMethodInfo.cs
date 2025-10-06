@@ -1,29 +1,32 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
+using static Aspire.Cli.Rosetta.Models.Types.SrmTypeShape;
 
 namespace Aspire.Cli.Rosetta.Models.Types;
 
+[DebuggerDisplay("{ToString(),nq}")]
 internal sealed class RoMethodInfo
 {
     private readonly Lazy<RoType> _returnType;
-    private readonly MethodDefinition _methodDefinition;
     private readonly MetadataReader _reader;
     private readonly AssemblyLoaderContext _assemblyLoaderContext;
     private readonly Lazy<List<RoCustomAttributeData>> _customAttributes;
 
-    public RoMethodInfo(MethodDefinition methodDefinition, RoType declaringType, MetadataReader reader, AssemblyLoaderContext assemblyLoaderContext)
+    public RoMethodInfo(MethodDefinition methodDefinition, RoType declaringType)
     {
-        // Note: assemblyLoaderContext will be used for resolving parameter/return types from other assemblies
-        _assemblyLoaderContext = assemblyLoaderContext;
-        _methodDefinition = methodDefinition;
+        MethodDefinition = methodDefinition;
         DeclaringType = declaringType;
-        _reader = reader;
+
+        // Note: assemblyLoaderContext will be used for resolving parameter/return types from other assemblies
+        _assemblyLoaderContext = declaringType.Assembly.AssemblyLoaderContext;
+        _reader = declaringType.Assembly.Reader;
 
         // Extract method name
-        Name = reader.GetString(methodDefinition.Name) ?? throw new InvalidOperationException("Invalid method, missing Name.");
+        Name = _reader.GetString(methodDefinition.Name) ?? throw new InvalidOperationException("Invalid method, missing Name.");
 
         // Extract method attributes
         var attributes = methodDefinition.Attributes;
@@ -34,7 +37,7 @@ internal sealed class RoMethodInfo
         IsGenericMethodDefinition = genericParams.Count > 0;
 
         // Load parameters
-        Parameters = LoadParameters(methodDefinition, reader, assemblyLoaderContext);
+        Parameters = LoadParameters(methodDefinition);
 
         // Initialize lazy-loaded fields
         _returnType = new(LoadReturnType);
@@ -53,16 +56,18 @@ internal sealed class RoMethodInfo
         _customAttributes = new(LoadCustomAttributes);
     }
 
-    private IReadOnlyList<RoParameterInfo> LoadParameters(MethodDefinition methodDefinition, MetadataReader reader, AssemblyLoaderContext assemblyLoaderContext)
+    public MethodDefinition MethodDefinition { get; }
+
+    private List<RoParameterInfo> LoadParameters(MethodDefinition methodDefinition)
     {
         var parameters = new List<RoParameterInfo>();
 
-        var sig = methodDefinition.DecodeSignature(new DisplayTypeProvider(reader), genericContext: null);
+        var sig = methodDefinition.DecodeSignature(new DisplayTypeProvider(_reader), genericContext: null);
 
         var i = 0;
         foreach (var paramHandle in methodDefinition.GetParameters())
         {
-            var paramDef = reader.GetParameter(paramHandle);
+            var paramDef = _reader.GetParameter(paramHandle);
 
             if (paramDef.SequenceNumber == 0)
             {
@@ -70,7 +75,7 @@ internal sealed class RoMethodInfo
             }
 
             var type = sig.ParameterTypes[i];
-            var parameter = new RoParameterInfo(paramDef, type, this, reader, assemblyLoaderContext);
+            var parameter = new RoParameterInfo(paramDef, type, this);
             parameters.Add(parameter);
             i++;
         }
@@ -94,7 +99,7 @@ internal sealed class RoMethodInfo
     {
         var list = new List<RoCustomAttributeData>();
 
-        foreach (var attrHandle in _methodDefinition.GetCustomAttributes())
+        foreach (var attrHandle in MethodDefinition.GetCustomAttributes())
         {
             try
             {
@@ -111,7 +116,7 @@ internal sealed class RoMethodInfo
                             var name = _reader.GetString(typeDef.Name);
                             var ns = typeDef.Namespace.IsNil ? string.Empty : _reader.GetString(typeDef.Namespace);
                             var fullName = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
-                            attributeType = DeclaringType.Assembly.GetType(fullName);
+                            attributeType = DeclaringType.Assembly.GetTypeDefinition(fullName);
                             break;
                         }
                     case HandleKind.MemberReference:
@@ -122,9 +127,9 @@ internal sealed class RoMethodInfo
 
                             if (fullName is not null)
                             {
-                                attributeType = DeclaringType.Assembly.GetType(fullName) ??
+                                attributeType = DeclaringType.Assembly.GetTypeDefinition(fullName) ??
                                     _assemblyLoaderContext.LoadedAssemblies.Values
-                                        .Select(a => a.GetType(fullName))
+                                        .Select(a => a.GetTypeDefinition(fullName))
                                         .FirstOrDefault(t => t is not null);
                             }
                             break;
@@ -136,7 +141,7 @@ internal sealed class RoMethodInfo
                     list.Add(new RoCustomAttributeData
                     {
                         AttributeType = attributeType,
-                        NamedArguments = Array.Empty<KeyValuePair<string, object>>()
+                        NamedArguments = []
                     });
                 }
             }
@@ -150,17 +155,33 @@ internal sealed class RoMethodInfo
 
     private RoType LoadReturnType()
     {
-        var sig = _methodDefinition.DecodeSignature(new DisplayTypeProvider(_reader), null);
-        var returnType = sig.ReturnType;
+        var returnType = MethodDefinition.DecodeSignature(new DisplayTypeProvider(_reader), null).ReturnType;
 
-        return DeclaringType.Assembly.GetType(returnType) ??
+        var baseReturnType = DeclaringType.Assembly.GetTypeDefinition(returnType) ??
                                 _assemblyLoaderContext.LoadedAssemblies.Values
-                                    .Select(a => a.GetType(returnType))
+                                    .Select(a => a.GetTypeDefinition(returnType))
                                     .FirstOrDefault(t => t is not null) ?? throw new InvalidOperationException($"Unknown type: {returnType}");
+
+        return IsReturnArray(_reader, MethodDefinition)
+            ? new RoArrayType(baseReturnType, 1)
+            : baseReturnType
+            ;
     }
 
     public override string ToString()
     {
-        return Name;
+        var builder = new System.Text.StringBuilder();
+        builder.Append(Name);
+
+        if (GenericArguments.Count > 0)
+        {
+            builder.Append('<');
+            builder.Append(string.Join(", ", GenericArguments.Select(t => t.ToString())));
+            builder.Append('>');
+        }
+        builder.Append('(');
+        builder.Append(string.Join(", ", Parameters.Select(p => p.ParameterType.Name)));
+        builder.Append(')');
+        return builder.ToString();
     }
 }

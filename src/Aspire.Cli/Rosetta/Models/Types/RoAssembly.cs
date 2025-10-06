@@ -7,8 +7,6 @@ namespace Aspire.Cli.Rosetta.Models.Types;
 
 internal sealed class RoAssembly
 {
-    private readonly MetadataReader _reader;
-    private readonly AssemblyLoaderContext _assemblyLoaderContext;
     private readonly Lazy<IDictionary<string, RoType>> _types;
     private readonly Lazy<IReadOnlyList<string>> _referencedAssemblyNames;
     public RoAssembly(AssemblyDefinition assemblyDefinition, MetadataReader reader, AssemblyLoaderContext assemblyLoaderContext)
@@ -18,8 +16,8 @@ internal sealed class RoAssembly
             throw new ArgumentException("Not an Assembly reader", nameof(reader));
         }
 
-        _reader = reader;
-        _assemblyLoaderContext = assemblyLoaderContext;
+        Reader = reader;
+        AssemblyLoaderContext = assemblyLoaderContext;
         _types = new(LoadTypes);
         _referencedAssemblyNames = new(LoadReferencedAssemblyNames);
         Name = reader.GetString(assemblyDefinition.Name) ?? throw new InvalidOperationException("Invalid assembly, missing Name.");
@@ -27,24 +25,28 @@ internal sealed class RoAssembly
 
     public string Name { get; }
     public IReadOnlyList<string> ReferencedAssemblyNames => _referencedAssemblyNames.Value;
-    public RoType? GetType(string name)
+
+    public MetadataReader Reader { get; }
+    public AssemblyLoaderContext AssemblyLoaderContext { get; }
+
+    public RoType? GetTypeDefinition(string name)
     {
         _types.Value.TryGetValue(name, out var result);
         return result;
     }
-    public IEnumerable<RoType> GetTypes() => _types.Value.Values;
+    public IEnumerable<RoType> GetTypeDefinitions() => _types.Value.Values;
     public IEnumerable<RoCustomAttributeData> GetCustomAttributes() => throw new NotImplementedException();
 
     private Dictionary<string, RoType> LoadTypes()
     {
         var types = new Dictionary<string, RoType>();
 
-        foreach (var typeDefHandle in _reader.TypeDefinitions)
+        foreach (var typeDefHandle in Reader.TypeDefinitions)
         {
-            var typeDef = _reader.GetTypeDefinition(typeDefHandle);
+            var typeDef = Reader.GetTypeDefinition(typeDefHandle);
 
             // Skip compiler-generated types (those with special names)
-            var name = _reader.GetString(typeDef.Name);
+            var name = Reader.GetString(typeDef.Name);
             if (string.IsNullOrEmpty(name) || name.StartsWith('<'))
             {
                 continue;
@@ -62,7 +64,7 @@ internal sealed class RoAssembly
             }
 
             // Create RoType instance - all metadata extraction happens in constructor
-            var roType = new RoType(typeDef, this, _reader, _assemblyLoaderContext);
+            var roType = new RoDefinitionType(typeDef, this);
             types[roType.FullName] = roType;
         }
 
@@ -72,10 +74,10 @@ internal sealed class RoAssembly
     private IReadOnlyList<string> LoadReferencedAssemblyNames()
     {
         var list = new List<string>();
-        foreach (var handle in _reader.AssemblyReferences)
+        foreach (var handle in Reader.AssemblyReferences)
         {
-            var reference = _reader.GetAssemblyReference(handle);
-            var name = _reader.GetString(reference.Name);
+            var reference = Reader.GetAssemblyReference(handle);
+            var name = Reader.GetString(reference.Name);
             if (!string.IsNullOrEmpty(name))
             {
                 list.Add(name);

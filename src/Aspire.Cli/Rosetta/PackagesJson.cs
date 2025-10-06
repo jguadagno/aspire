@@ -38,7 +38,7 @@ internal sealed class PackagesJson
             File.WriteAllText(nugetCache, result);
         }
 
-        var doc = JsonObject.Parse(File.ReadAllText(nugetCache));
+        var doc = JsonNode.Parse(File.ReadAllText(nugetCache));
         s_packageNames = doc!["data"]!.AsArray().Select(x => $"{x!.AsObject()["id"]}@{x.AsObject()["version"]}").ToHashSet();
     }
 

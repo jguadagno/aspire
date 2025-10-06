@@ -65,7 +65,7 @@ internal class IntegrationModel
         };
 
         // List all types implementing IResource
-        var types = assembly.GetTypes()
+        var types = assembly.GetTypeDefinitions()
             .Where(t => !t.IsAbstract && t.IsPublic && knownTypes.IResourceType.IsAssignableFrom(t))
             .ToList();
 
@@ -114,7 +114,7 @@ internal class IntegrationModel
         var extensionAttributeType = wellKnownTypes.GetKnownType<ExtensionAttribute>();
 
         var isGenericTypeDefinition = extendedType.IsGenericType && extendedType.IsTypeDefinition;
-        var query = from type in assembly.GetTypes()
+        var query = from type in assembly.GetTypeDefinitions()
                     where type.IsSealed && !type.IsGenericType && !type.IsNested && type.IsPublic
                     from method in type.Methods
                     where method.IsStatic && method.IsPublic
@@ -185,8 +185,10 @@ internal class IntegrationModel
             // This should probably be converted to an allow-list of types
             // e.g. UnixFileMode
 
+            // TODO: Consider IsByRef since it has been removed from RoType for now
+
             var isCandidate = !type.IsGenericParameter &&
-                !type.IsByRef &&
+                // !type.IsByRef &&
                 type.IsPublic &&
                 (type.Assembly != objectType.Assembly || type.IsEnum) &&
                 !knownTypes.Contains(type) &&
