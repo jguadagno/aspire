@@ -268,6 +268,8 @@ namespace Aspire.Hosting
         public bool DisableDashboard { get { throw null; } set { } }
 
         public bool EnableResourceLogging { get { throw null; } set { } }
+
+        public string? ProjectDirectory { get { throw null; } set { } }
     }
 
     public static partial class EmulatorResourceExtensions
@@ -394,6 +396,8 @@ namespace Aspire.Hosting
     [System.Diagnostics.CodeAnalysis.Experimental("ASPIREINTERACTION001", UrlFormat = "https://aka.ms/aspire/diagnostics/{0}")]
     public sealed partial class InteractionInput
     {
+        public bool AllowCustomChoice { get { throw null; } init { } }
+
         public string? Description { get { throw null; } init { } }
 
         public bool EnableDescriptionMarkdown { get { throw null; } init { } }
@@ -681,6 +685,12 @@ namespace Aspire.Hosting
 
         public static ApplicationModel.IResourceBuilder<T> WithArgs<T>(this ApplicationModel.IResourceBuilder<T> builder, params string[] args)
             where T : ApplicationModel.IResourceWithArgs { throw null; }
+
+        public static ApplicationModel.IResourceBuilder<T> WithChildRelationship<T>(this ApplicationModel.IResourceBuilder<T> builder, ApplicationModel.IResource child)
+            where T : ApplicationModel.IResource { throw null; }
+
+        public static ApplicationModel.IResourceBuilder<T> WithChildRelationship<T>(this ApplicationModel.IResourceBuilder<T> builder, ApplicationModel.IResourceBuilder<ApplicationModel.IResource> child)
+            where T : ApplicationModel.IResource { throw null; }
 
         public static ApplicationModel.IResourceBuilder<T> WithCommand<T>(this ApplicationModel.IResourceBuilder<T> builder, string name, string displayName, System.Func<ApplicationModel.ExecuteCommandContext, System.Threading.Tasks.Task<ApplicationModel.ExecuteCommandResult>> executeCommand, ApplicationModel.CommandOptions? commandOptions = null)
             where T : ApplicationModel.IResource { throw null; }
@@ -1354,6 +1364,8 @@ namespace Aspire.Hosting.ApplicationModel
 
         public AllocatedEndpoint? AllocatedEndpoint { get { throw null; } set { } }
 
+        public ValueSnapshot<AllocatedEndpoint> AllocatedEndpointSnapshot { get { throw null; } }
+
         public bool IsExternal { get { throw null; } set { } }
 
         public bool IsProxied { get { throw null; } set { } }
@@ -1405,6 +1417,7 @@ namespace Aspire.Hosting.ApplicationModel
         HostAndPort = 6
     }
 
+    [System.Diagnostics.DebuggerDisplay("Resource = {Resource.Name}, EndpointName = {EndpointName}, IsAllocated = {IsAllocated}")]
     public sealed partial class EndpointReference : IManifestExpressionProvider, IValueProvider, IValueWithReferences
     {
         public EndpointReference(IResourceWithEndpoints owner, EndpointAnnotation endpoint) { }
@@ -1417,7 +1430,11 @@ namespace Aspire.Hosting.ApplicationModel
 
         public string ContainerHost { get { throw null; } }
 
+        public EndpointAnnotation EndpointAnnotation { get { throw null; } }
+
         public string EndpointName { get { throw null; } }
+
+        public string? ErrorMessage { get { throw null; } init { } }
 
         public bool Exists { get { throw null; } }
 
@@ -1435,7 +1452,7 @@ namespace Aspire.Hosting.ApplicationModel
 
         public string Url { get { throw null; } }
 
-        System.Threading.Tasks.ValueTask<string?> IValueProvider.GetValueAsync(System.Threading.CancellationToken cancellationToken) { throw null; }
+        public System.Threading.Tasks.ValueTask<string?> GetValueAsync(System.Threading.CancellationToken cancellationToken = default) { throw null; }
 
         public EndpointReferenceExpression Property(EndpointProperty property) { throw null; }
     }
@@ -1572,6 +1589,7 @@ namespace Aspire.Hosting.ApplicationModel
     [System.Diagnostics.DebuggerDisplay("{Status}", Name = "{Name}")]
     public sealed partial record HealthReportSnapshot(string Name, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? Status, string? Description, string? ExceptionText)
     {
+        public System.DateTime? LastRunAt { get { throw null; } init { } }
     }
 
     public partial record HostUrl(string Url) : IValueProvider, IManifestExpressionProvider
@@ -2277,7 +2295,7 @@ namespace Aspire.Hosting.ApplicationModel
     {
         public ResourceNotificationService(Microsoft.Extensions.Logging.ILogger<ResourceNotificationService> logger, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime, System.IServiceProvider serviceProvider, ResourceLoggerService resourceLoggerService) { }
 
-        [System.Obsolete("ResourceNotificationService now requires an IServiceProvider and ResourceLoggerService.\r\nUse the constructor that accepts an ILogger<ResourceNotificationService>, IHostApplicationLifetime, IServiceProvider and ResourceLoggerService.\r\nThis constructor will be removed in the next major version of Aspire.")]
+        [System.Obsolete("ResourceNotificationService now requires an IServiceProvider and ResourceLoggerService.\nUse the constructor that accepts an ILogger<ResourceNotificationService>, IHostApplicationLifetime, IServiceProvider and ResourceLoggerService.\nThis constructor will be removed in the next major version of Aspire.")]
         public ResourceNotificationService(Microsoft.Extensions.Logging.ILogger<ResourceNotificationService> logger, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime) { }
 
         public void Dispose() { }
@@ -2434,6 +2452,17 @@ namespace Aspire.Hosting.ApplicationModel
         public bool IsInactive { get { throw null; } init { } }
     }
 
+    public sealed partial class ValueSnapshot<T>
+    {
+        public bool IsValueSet { get { throw null; } }
+
+        public System.Threading.Tasks.Task<T> GetValueAsync(System.Threading.CancellationToken cancellationToken = default) { throw null; }
+
+        public void SetException(System.Exception exception) { }
+
+        public void SetValue(T value) { }
+    }
+
     [System.Diagnostics.DebuggerDisplay("{Source}", Name = "{Target}")]
     public sealed partial record VolumeSnapshot(string? Source, string Target, string MountType, bool IsReadOnly)
     {
@@ -2533,6 +2562,21 @@ namespace Aspire.Hosting.Eventing
 
 namespace Aspire.Hosting.Lifecycle
 {
+    public static partial class EventingSubscriberServiceCollectionExtensions
+    {
+        public static void AddEventingSubscriber<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+            where T : class, IDistributedApplicationEventingSubscriber { }
+
+        public static void TryAddEventingSubscriber<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+            where T : class, IDistributedApplicationEventingSubscriber { }
+    }
+
+    public partial interface IDistributedApplicationEventingSubscriber
+    {
+        System.Threading.Tasks.Task SubscribeAsync(Eventing.IDistributedApplicationEventing eventing, DistributedApplicationExecutionContext executionContext, System.Threading.CancellationToken cancellationToken);
+    }
+
+    [System.Obsolete("Use IDistributedApplicationEventingSubscriber instead.")]
     public partial interface IDistributedApplicationLifecycleHook
     {
         System.Threading.Tasks.Task AfterEndpointsAllocatedAsync(ApplicationModel.DistributedApplicationModel appModel, System.Threading.CancellationToken cancellationToken = default);
@@ -2542,15 +2586,19 @@ namespace Aspire.Hosting.Lifecycle
 
     public static partial class LifecycleHookServiceCollectionExtensions
     {
+        [System.Obsolete("Use EventingSubscriberServiceCollectionExtensions.AddEventingSubscriber instead.")]
         public static void AddLifecycleHook<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Func<System.IServiceProvider, T> implementationFactory)
             where T : class, IDistributedApplicationLifecycleHook { }
 
+        [System.Obsolete("Use EventingSubscriberServiceCollectionExtensions.AddEventingSubscriber instead.")]
         public static void AddLifecycleHook<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
             where T : class, IDistributedApplicationLifecycleHook { }
 
+        [System.Obsolete("Use EventingSubscriberServiceCollectionExtensions.TryAddEventingSubscriber instead.")]
         public static void TryAddLifecycleHook<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Func<System.IServiceProvider, T> implementationFactory)
             where T : class, IDistributedApplicationLifecycleHook { }
 
+        [System.Obsolete("Use EventingSubscriberServiceCollectionExtensions.TryAddEventingSubscriber instead.")]
         public static void TryAddLifecycleHook<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
             where T : class, IDistributedApplicationLifecycleHook { }
     }
